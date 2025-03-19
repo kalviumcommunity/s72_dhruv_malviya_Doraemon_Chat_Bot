@@ -2,7 +2,7 @@
 
 ## 🌟 Capstone Project Idea Brief
 
-The Doraemon Chat Bot is an intelligent learning platform designed to personalize education, provide instant doubt resolution, and foster collaboration through AI-powered tools. The platform enhances digital learning by leveraging artificial intelligence and real-time collaboration. It offers personalized study plans, AI-driven quizzes, real-time chat, and video summarization to create a comprehensive learning experience tailored to each user.
+The Doraemon Chat Bot is an intelligent learning platform designed to personalize education, provide instant doubt resolution, and foster collaboration through AI-powered tools. The platform enhances digital learning by leveraging artificial intelligence and real-time collaboration. It offers personalized study plan, AI-driven quizzes, real-time chat, and video summarization to create a comprehensive learning experience tailored to each user.
 
 ### 🚀 Key Features
 - **Personalized Learning Paths:** AI-generated study plans based on initial assessments.
@@ -31,5 +31,5 @@ The Doraemon Chat Bot is an intelligent learning platform designed to personaliz
 - **AI/ML Integration:** OpenAI GPT-4, TensorFlow.js
 - **Deployment & Storage:** Vercel/Netlify (Frontend), Render (Backend), MongoDB Atlas (Database), AWS S3/Firebase (Storage), Redis (Caching)
 
----
+--- 
 
