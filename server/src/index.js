@@ -19,9 +19,22 @@ const io = socketIo(server, {
   }
 });
 
+const allowedOrigins = [
+  'https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app',
+  'http://localhost:3000'
+];
+
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    // Strictly match allowed origins (no trailing slash)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS: ' + origin));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
