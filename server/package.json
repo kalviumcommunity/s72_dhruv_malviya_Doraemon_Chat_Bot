@@ -4,9 +4,7 @@
   "description": "Backend server for Doraemon Chat Bot",
   "main": "src/index.js",
   "scripts": {
-    "start": "node --no-deprecation src/index.js",
-    "dev": "nodemon --no-deprecation src/index.js",
-    "build": "echo 'No build step required for Node.js server'",
+    "start": "node src/index.js",
     "test": "echo 'No tests specified' && exit 0"
   },
   "dependencies": {

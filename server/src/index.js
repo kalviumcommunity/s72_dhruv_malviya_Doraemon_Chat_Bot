@@ -7,35 +7,19 @@ const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
 const passport = require('./config/passport');
-const path = require('path');
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true
-  }
-});
 
+// CORS for API
 const allowedOrigins = [
   'https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app',
   'http://localhost:3000'
 ];
-
-// Middleware
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    // Strictly match allowed origins (no trailing slash)
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS: ' + origin));
-  },
-  credentials: true
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -43,12 +27,28 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Initialize passport
 app.use(passport.initialize());
 
+// Root API health check
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Doraemon Chat Bot API',
+    status: 'running',
+    frontend: 'https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app',
+    endpoints: {
+      auth: '/api/auth/google',
+      chat: '/api/chat',
+      quiz: '/api/quiz',
+      progress: '/api/progress',
+      leaderboard: '/api/leaderboard'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.json({ 
+    status: 'healthy', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
 
@@ -80,19 +80,14 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
-
-// Connect to database
 connectDB();
 
-// Add connection error handlers
 mongoose.connection.on('error', (err) => {
   console.error('MongoDB connection error:', err);
 });
-
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
 });
-
 mongoose.connection.on('reconnected', () => {
   console.log('MongoDB reconnected');
 });
@@ -104,44 +99,12 @@ const quizRoutes = require('./routes/quiz');
 const progressRoutes = require('./routes/progress');
 const leaderboardRoutes = require('./routes/leaderboard');
 
-// Use routes
+// Use API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
-
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../client/build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../../client/build', 'index.html'));
-  });
-}
-
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('New client connected');
-
-  socket.on('join', (userId) => {
-    socket.join(userId);
-    console.log(`User ${userId} joined their room`);
-  });
-
-  socket.on('sendMessage', async (data) => {
-    try {
-      // Handle message sending logic here
-      io.to(data.receiverId).emit('receiveMessage', data);
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
-  });
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -152,12 +115,38 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+// Create HTTP server and bind Socket.io
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
 
-const PORT = process.env.PORT || 5000;
+// Socket.io logic
+io.on('connection', (socket) => {
+  console.log('New client connected');
+  // Example: join room, send/receive messages
+  socket.on('join', (userId) => {
+    socket.join(userId);
+    console.log(`User ${userId} joined their room`);
+  });
+  socket.on('sendMessage', async (data) => {
+    try {
+      io.to(data.receiverId).emit('receiveMessage', data);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  });
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -175,8 +164,6 @@ process.on('SIGINT', async () => {
     process.exit(1);
   }
 });
-
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Promise Rejection:', err);
   process.exit(1);
