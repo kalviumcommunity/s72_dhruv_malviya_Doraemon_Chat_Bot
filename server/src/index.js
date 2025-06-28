@@ -1,6 +1,33 @@
 // Remove the insecure TLS bypass
 // process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // Only for development!
-require('dotenv').config();
+
+// Load environment variables with fallback for missing .env file
+try {
+  require('dotenv').config();
+} catch (error) {
+  console.log('No .env file found, using default values');
+}
+
+// Set default values for environment variables
+const config = {
+  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/doraemon-chat-bot',
+  PORT: process.env.PORT || 10000,
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:3000',
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+  JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || ''
+};
+
+// Log configuration (without sensitive data)
+console.log('Configuration loaded:', {
+  PORT: config.PORT,
+  NODE_ENV: config.NODE_ENV,
+  CLIENT_URL: config.CLIENT_URL,
+  MONGODB_URI: config.MONGODB_URI ? '***configured***' : '***using default***'
+});
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -13,8 +40,10 @@ const app = express();
 // CORS for API
 const allowedOrigins = [
   'https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app',
-  'http://localhost:3000'
-];
+  'http://localhost:3000',
+  config.CLIENT_URL
+].filter(Boolean); // Remove empty values
+
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
@@ -32,7 +61,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Doraemon Chat Bot API',
     status: 'running',
-    frontend: 'https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app',
+    frontend: config.CLIENT_URL,
     endpoints: {
       auth: '/api/auth/google',
       chat: '/api/chat',
@@ -55,15 +84,15 @@ app.get('/health', (req, res) => {
 // MongoDB connection with updated options
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    await mongoose.connect(config.MONGODB_URI, {
       serverApi: {
         version: '1',
         strict: true,
         deprecationErrors: true
       },
-      ssl: process.env.NODE_ENV === 'production',
-      tls: process.env.NODE_ENV === 'production',
-      tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production',
+      ssl: config.NODE_ENV === 'production',
+      tls: config.NODE_ENV === 'production',
+      tlsAllowInvalidCertificates: config.NODE_ENV !== 'production',
       retryWrites: true,
       w: 'majority',
       connectTimeoutMS: 30000,
@@ -77,7 +106,11 @@ const connectDB = async () => {
     console.log('Connected to MongoDB successfully');
   } catch (err) {
     console.error('MongoDB connection error:', err);
-    process.exit(1);
+    console.log('If you are running locally, make sure MongoDB is running or set MONGODB_URI in your .env file');
+    // Don't exit in development, allow the app to continue
+    if (config.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 };
 connectDB();
@@ -111,7 +144,7 @@ app.use((err, req, res, next) => {
   console.error('Global error handler:', err);
   res.status(500).json({
     message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    error: config.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
@@ -146,11 +179,10 @@ io.on('connection', (socket) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
+server.listen(config.PORT, () => {
+  console.log(`Server running on port ${config.PORT}`);
+  console.log(`Environment: ${config.NODE_ENV}`);
+  console.log(`Client URL: ${config.CLIENT_URL}`);
 });
 
 // Handle process termination

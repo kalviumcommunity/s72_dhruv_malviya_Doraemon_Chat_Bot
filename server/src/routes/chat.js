@@ -5,14 +5,17 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const xpService = require('../services/xpService');
 
-// ChatAnywhere API configuration
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || "https://api.chatanywhere.tech/v1";
+// ChatAnywhere API configuration with fallbacks
+const config = {
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+  OPENAI_API_BASE_URL: process.env.OPENAI_API_BASE_URL || "https://api.chatanywhere.tech/v1"
+};
 
 // Debug logging for API key
-console.log('OpenAI API Key:', OPENAI_API_KEY ? 'Present' : 'Missing');
-if (!OPENAI_API_KEY) {
-  console.error('OpenAI API key is missing. Please check your .env file.');
+console.log('OpenAI API Key:', config.OPENAI_API_KEY ? 'Present' : 'Missing');
+if (!config.OPENAI_API_KEY) {
+  console.log('OpenAI API key is missing. Chat functionality will be limited.');
+  console.log('To enable full chat functionality, set OPENAI_API_KEY in your .env file');
 }
 
 // Get chat history
@@ -43,12 +46,34 @@ router.post('/send', auth, async (req, res) => {
       });
     }
 
+    // Check if OpenAI API key is available
+    if (!config.OPENAI_API_KEY) {
+      // Award XP for the attempt even without API
+      const xpResult = await xpService.awardXP(
+        req.user.userId, 
+        xpService.XP_REWARDS.CHAT_MESSAGE, 
+        'chat_message_no_api'
+      );
+      
+      return res.json({ 
+        message: "I'm sorry, but I'm currently offline. Please check back later or contact the administrator to configure the AI service.",
+        timestamp: new Date(),
+        xp: {
+          awarded: xpService.XP_REWARDS.CHAT_MESSAGE,
+          total: xpResult.currentXp,
+          level: xpResult.newLevel,
+          leveledUp: xpResult.leveledUp
+        },
+        offline: true
+      });
+    }
+
     // Debug logging before API call
     console.log('Attempting to send message to ChatGPT...');
     
     try {
       const response = await axios.post(
-        `${OPENAI_API_BASE_URL}/chat/completions`,
+        `${config.OPENAI_API_BASE_URL}/chat/completions`,
         {
           model: "gpt-3.5-turbo",
           messages: [
@@ -58,7 +83,7 @@ router.post('/send', auth, async (req, res) => {
         },
         {
           headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Authorization': `Bearer ${config.OPENAI_API_KEY}`,
             'Content-Type': 'application/json'
           }
         }
@@ -152,11 +177,32 @@ router.post('/study-doubt', auth, async (req, res) => {
       });
     }
 
+    // Check if OpenAI API key is available
+    if (!config.OPENAI_API_KEY) {
+      // Award XP for the attempt even without API
+      const xpResult = await xpService.awardXP(
+        req.user.userId, 
+        xpService.XP_REWARDS.STUDY_DOUBT, 
+        'study_doubt_no_api'
+      );
+      
+      return res.json({ 
+        message: "I'm sorry, but I'm currently offline and cannot help with study doubts. Please check back later or contact the administrator to configure the AI service.",
+        xp: {
+          awarded: xpService.XP_REWARDS.STUDY_DOUBT,
+          total: xpResult.currentXp,
+          level: xpResult.newLevel,
+          leveledUp: xpResult.leveledUp
+        },
+        offline: true
+      });
+    }
+
     console.log('Attempting to send study doubt to ChatGPT...');
     
     try {
       const response = await axios.post(
-        `${OPENAI_API_BASE_URL}/chat/completions`,
+        `${config.OPENAI_API_BASE_URL}/chat/completions`,
         {
           model: "gpt-3.5-turbo",
           messages: [
@@ -169,7 +215,7 @@ router.post('/study-doubt', auth, async (req, res) => {
         },
         {
           headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Authorization': `Bearer ${config.OPENAI_API_KEY}`,
             'Content-Type': 'application/json'
           }
         }

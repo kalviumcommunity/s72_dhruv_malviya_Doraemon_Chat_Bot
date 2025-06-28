@@ -7,6 +7,12 @@ const passport = require('../config/passport');
 
 const router = express.Router();
 
+// Get configuration with fallbacks
+const config = {
+  JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:3000'
+};
+
 // Register new user
 router.post('/register', async (req, res) => {
   try {
@@ -46,7 +52,7 @@ router.post('/register', async (req, res) => {
     ]);
 
     // Generate token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, {
       expiresIn: '7d'
     });
 
@@ -92,7 +98,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Generate token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, {
       expiresIn: '7d'
     });
 
@@ -130,22 +136,22 @@ router.get('/google/callback',
     console.log('Received callback from Google OAuth');
     passport.authenticate('google', { 
       session: false, 
-      failureRedirect: 'https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app/login?error=auth_failed' 
+      failureRedirect: `${config.CLIENT_URL}/login?error=auth_failed` 
     })(req, res, next);
   },
   (req, res) => {
     try {
       console.log('Google authentication successful, generating token for user:', req.user._id);
       // Generate JWT token
-      const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, {
+      const token = jwt.sign({ userId: req.user._id }, config.JWT_SECRET, {
         expiresIn: '7d'
       });
       
       // Redirect to frontend dashboard with token
-      res.redirect(`https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app/dashboard?token=${token}&auth=success`);
+      res.redirect(`${config.CLIENT_URL}/dashboard?token=${token}&auth=success`);
     } catch (error) {
       console.error('Google auth callback error:', error);
-      res.redirect(`https://s72-dhruv-malviya-doraemon-chat-bot.vercel.app/login?error=${encodeURIComponent(error.message || 'authentication_failed')}`);
+      res.redirect(`${config.CLIENT_URL}/login?error=${encodeURIComponent(error.message || 'authentication_failed')}`);
     }
   }
 );

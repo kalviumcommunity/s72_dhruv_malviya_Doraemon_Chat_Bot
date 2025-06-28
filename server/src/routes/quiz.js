@@ -5,15 +5,37 @@ const OpenAI = require('openai');
 const User = require('../models/User');
 const xpService = require('../services/xpService');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE_URL
-});
+// Configuration with fallbacks
+const config = {
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+  OPENAI_API_BASE_URL: process.env.OPENAI_API_BASE_URL || 'https://api.openai.com/v1'
+};
+
+// Initialize OpenAI with fallback handling
+let openai;
+if (config.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: config.OPENAI_API_KEY,
+    baseURL: config.OPENAI_API_BASE_URL
+  });
+} else {
+  console.log('OpenAI API key is missing. Quiz generation will be limited.');
+  console.log('To enable quiz generation, set OPENAI_API_KEY in your .env file');
+}
 
 // Generate quiz
 router.post('/generate', auth, async (req, res) => {
   try {
     const { topic, difficulty, numQuestions } = req.body;
+
+    // Check if OpenAI API key is available
+    if (!config.OPENAI_API_KEY || !openai) {
+      return res.status(503).json({
+        message: "Quiz generation is currently unavailable. Please check back later or contact the administrator to configure the AI service.",
+        error: "OpenAI API not configured",
+        offline: true
+      });
+    }
 
     const prompt = `Generate a ${difficulty} level quiz about ${topic} with ${numQuestions} questions. 
     Format the response as a JSON object with the following structure:
