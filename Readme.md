@@ -21,6 +21,9 @@ node setup-env.js
 - ✅ **SSL**: Automatic HTTPS
 
 ---
+### **Deployed Links**
+- **Backend**: https://s72-dhruv-malviya-doraemon-chat-bot-crg8.onrender.com/
+- **Frontend**: https://dulcet-crisp-45b72a.netlify.app/
 
 ## 🌟 Capstone Project Idea Brief
 
